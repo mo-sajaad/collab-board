@@ -1,0 +1,49 @@
+/* Navbar container */
+.nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 60px;
+  background-color: #026aa7; /* Trello blue */
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+/* Logo */
+.logo {
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+/* Search bar */
+.nav-search input {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  width: 200px;
+}
+
+/* Links container */
+.nav-links {
+  display: flex;
+  gap: 15px;
+}
+
+/* Individual nav link */
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+/* Hover and active state */
+.nav-link:hover,
+.nav-link.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}

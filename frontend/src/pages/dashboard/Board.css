@@ -1,0 +1,76 @@
+/* Board Header */
+.board-header {
+  padding: 20px;
+  background-color: #f4f5f7;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.board-title {
+  margin: 0 0 10px 0;
+  color: #172b4d;
+  font-size: 2rem;
+}
+
+.board-header h3 {
+  margin: 10px 0 5px 0;
+  color: #5e6c84;
+}
+
+.board-header p {
+  margin: 3px 0;
+  color: #5e6c84;
+}
+
+/* Board Container: full width flex */
+.board-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  height: calc(100vh - 150px); /* fill vertical space minus header */
+  padding: 0 10px 10px 10px;
+  box-sizing: border-box;
+  overflow-x: auto; /* scroll if too many stages */
+}
+
+/* Stage Container: fill available height and grow */
+.stage-container {
+  background-color: #ebecf0;
+  flex: 1; /* grow to fill horizontal space */
+  min-width: 250px; /* still keep minimum width for small screens */
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+/* Stage Title */
+.stage-title {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+  color: #172b4d;
+}
+
+/* Tasks List */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto; /* scroll inside stage if too many tasks */
+}
+
+/* Individual Task */
+.task {
+  background-color: white;
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.task:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
