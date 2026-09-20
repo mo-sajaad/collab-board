@@ -1,9 +1,28 @@
-
-export function UserLogin(email, password) {
-    return email & password
-}
+import request from "./client";
 
 
-export function UserSignup(email, password) {
-    return email & password
-}
+export const registerUser = (data) => {
+  return request("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+
+export const loginUser = async (data) => {
+  const res = await request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  if (res.token) {
+    localStorage.setItem("token1", res.token);
+  }
+
+  return res;
+};
+
+// Logout
+export const logoutUser = () => {
+  localStorage.removeItem("token1");
+};

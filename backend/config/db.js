@@ -1,5 +1,6 @@
-import 'dotenv/config'
-import pg from 'pg'
+require('dotenv').config()
+const { Pool } = require('pg')
+
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -8,14 +9,12 @@ const pool = new Pool({
   port: Number(process.env.DB_PORT),
 })
 
-pool.connect(
-  (err, client, release) => {
-    if (err) {
-      return console.error('Error acquiring client', err.stack);
-    }
-    console.log('Connected to PostgreSQL');
-    release();
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('Error acquiring client', err.stack)
   }
-)
+  console.log('Connected to PostgreSQL')
+  release()
+})
 
-module.exports = pool;
+module.exports = pool

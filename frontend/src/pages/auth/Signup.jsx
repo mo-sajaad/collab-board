@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { UserSignup } from "../../api/auth";
+import { registerUser } from "../../api/auth";
 import Input from "../../components/Input";
 import { validateEmail } from "../../utils/helper";
 
@@ -18,29 +18,38 @@ export default function Signup() {
     e.preventDefault();
     setLoading(true);
 
-    if (!fullName) {
-      setError("Please enter your name.");
-      setLoading(false);
-      return;
-    }
+    try {
+      if (!fullName) {
+        setError("Please enter your name.");
+        return;
+      }
 
-    if (!validateEmail(email)) {
-      setError("Please enter a valid email address.");
-      setLoading(false);
-      return;
-    }
-    if (!password) {
-      setError("Please enter a password.");
-      setLoading(false);
-      return;
-    }
+      if (!validateEmail(email)) {
+        setError("Please enter a valid email address.");
+        return;
+      }
 
-    setError("");
+      if (!password) {
+        setError("Please enter a password.");
+        return;
+      }
 
-    if (UserSignup(email, password)) {
-      navigate("/");
-    } else {
-      console.log(e);
+      setError("");
+
+      const res = await registerUser({
+        fullName,
+        email,
+        password,
+      });
+
+      if (res) {
+        navigate("/");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +88,7 @@ export default function Signup() {
           placeholder="Min 8 characters"
           type="password"
         />
-        {error && <p>{error}</p>}
+        {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           disabled={loading}
           className="my-3 border-2 border-accent-hover bg-border rounded-2xl py-1 text-sm font-semibold leading-relaxed w-full cursor-pointer hover:bg-card/90 transition duration-300 ease-in-out"

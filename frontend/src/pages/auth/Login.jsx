@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { UserLogin } from "../../api/auth";
+import { loginUser } from "../../api/auth";
 import Input from "../../components/Input";
 import { validateEmail } from "../../utils/helper";
 
@@ -20,28 +20,27 @@ export default function Login() {
     try {
       if (!validateEmail(email)) {
         setError("Invalid email.");
-        setLoading(false);
         return;
       }
 
       if (!password) {
         setError("Please enter a password.");
-        setLoading(false);
         return;
       }
 
       setError("");
 
-      const res = await UserLogin(email, password);
+      const res = await loginUser({
+        email,
+        password,
+      });
 
-      if (res) {
+      if (res?.token) {
         navigate("/");
-      } else {
-        setError("Invalid credentials.");
       }
     } catch (err) {
       console.error(err);
-      setError("Something went wrong. Try again.");
+      setError(err.message || "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
@@ -73,7 +72,7 @@ export default function Login() {
           placeholder="Min 8 characters"
           type="password"
         />
-        {error && <p>{error}</p>}
+        {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           disabled={loading}
           className="my-3 border-2 border-accent-hover bg-border rounded-2xl py-1 text-sm font-semibold leading-relaxed w-full cursor-pointer hover:bg-card/90 transition duration-300 ease-in-out"
