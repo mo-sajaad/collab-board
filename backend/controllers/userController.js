@@ -67,10 +67,10 @@ async function loginUser(req, res) {
     const token = jwt.sign(
       { id: user.user_id, email: user.email },
       JWT_SECRET,
-      { expiresIn: "2h" }
+      { expiresIn: "12h" }
     );
 
-    return res.json({
+    return res.status(201).json({
       message: "Login successful",
       token,
       user: {

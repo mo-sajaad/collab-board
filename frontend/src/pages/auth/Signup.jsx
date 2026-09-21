@@ -97,7 +97,7 @@ export default function Signup() {
           {loading ? "Loading..." : "SUBMIT"}
         </button>
         <p>
-          Don't have an account?{" "}
+          Already have an account?{" "}
           <Link
             className="text-accent-hover transition-all hover:text-accent-hover/60 hover:-translate-y-0.5 duration-200 ease-in-out"
             to="/auth/login"

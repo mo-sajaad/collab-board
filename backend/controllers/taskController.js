@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 async function createTask(req, res) {
-  const { title, description, due_date, priority, board_id } = req.body;
+  const { title, description, due_date, status, priority, board_id, position } = req.body;
   const userId = req.user?.id;
 
   try {
@@ -17,10 +17,10 @@ async function createTask(req, res) {
 
     const result = await pool.query(
       `INSERT INTO tasks
-       (title, description, due_date, priority, creator_id, board_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (title, description, due_date, priority, status, position, creator_id, board_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [title, description, due_date, priority, userId, board_id]
+      [title, description, due_date, priority, status, position, userId, board_id]
     );
 
     return res.status(201).json(result.rows[0]);
@@ -87,7 +87,8 @@ async function getTask(req, res) {
 async function updateTask(req, res) {
   const { id } = req.params;
   const userId = req.user?.id;
-  const { title, description, due_date, priority, board_id } = req.body;
+  const { title, description, due_date, priority, board_id, status, position } =
+    req.body;
 
   try {
     if (!userId) {
@@ -98,14 +99,9 @@ async function updateTask(req, res) {
       return res.status(400).json({ error: "Valid task ID required" });
     }
 
-    if (!title || !description) {
-      return res.status(400).json({
-        error: "Title and description are required",
-      });
-    }
-
+    // 1. Check existence and permissions using task_id
     const existing = await pool.query(
-      `SELECT creator_id FROM tasks WHERE id = $1`,
+      `SELECT creator_id FROM tasks WHERE task_id = $1`,
       [id]
     );
 
@@ -114,19 +110,32 @@ async function updateTask(req, res) {
     }
 
     if (existing.rows[0].creator_id !== userId) {
-      return res.status(403).json({ error: "Forbidden" });
+      return res.status(403).json({ error: "Forbidden: You do not own this task" });
     }
 
+    // 2. Update with COALESCE so omitted fields keep their current DB values
     const result = await pool.query(
       `UPDATE tasks
-       SET title = $1,
-           description = $2,
-           due_date = $3,
-           priority = $4,
-           board_id = $5
-       WHERE id = $6
+       SET title       = COALESCE($1, title),
+           description = COALESCE($2, description),
+           due_date    = CASE WHEN $3::text IS NOT NULL THEN $3::timestamptz ELSE due_date END,
+           priority    = COALESCE($4, priority),
+           board_id    = COALESCE($5, board_id),
+           status      = COALESCE($6, status),
+           position    = COALESCE($7, position),
+           updated_at  = CURRENT_TIMESTAMP
+       WHERE task_id = $8
        RETURNING *`,
-      [title, description, due_date, priority, board_id, id]
+      [
+        title ?? null,
+        description ?? null,
+        due_date ?? null,
+        priority ?? null,
+        board_id ?? null,
+        status ?? null,
+        position ?? null,
+        id,
+      ]
     );
 
     return res.json({
@@ -134,7 +143,7 @@ async function updateTask(req, res) {
       data: result.rows[0],
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error in updateTask:", err);
     return res.status(500).json({ error: "Server error" });
   }
 }

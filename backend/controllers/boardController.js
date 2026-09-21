@@ -1,37 +1,45 @@
 const pool = require("../config/db");
 
-
 async function createBoard(req, res) {
   const { name, description } = req.body;
   const ownerId = req.user?.id;
 
+  if (!ownerId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!name?.trim()) {
+    return res.status(400).json({ error: "Board name is required" });
+  }
+
+  const client = await pool.connect();
+
   try {
-    if (!ownerId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    await client.query("BEGIN");
 
-    if (!name) {
-      return res.status(400).json({ error: "Board name is required" });
-    }
-
-    const result = await pool.query(
+    const boardResult = await client.query(
       `INSERT INTO boards (name, description, owner_id)
        VALUES ($1, $2, $3)
        RETURNING *`,
-      [name, description, ownerId]
+      [name.trim(), description || null, ownerId]
     );
 
+    const newBoard = boardResult.rows[0];
 
-    await pool.query(
+    await client.query(
       `INSERT INTO board_members (board_id, user_id, role)
        VALUES ($1, $2, 'owner')`,
-      [result.rows[0].board_id, ownerId]
+      [newBoard.board_id, ownerId]
     );
 
-    return res.status(201).json(result.rows[0]);
+    await client.query("COMMIT");
+    return res.status(201).json(newBoard);
   } catch (err) {
-    console.error(err);
+    await client.query("ROLLBACK");
+    console.error("Error creating board:", err);
     return res.status(500).json({ error: "Failed to create board" });
+  } finally {
+    client.release();
   }
 }
 
@@ -45,11 +53,21 @@ async function getUserBoards(req, res) {
     }
 
     const result = await pool.query(
-      `SELECT b.*
-       FROM boards b
-       JOIN board_members bm ON bm.board_id = b.board_id
-       WHERE bm.user_id = $1
-       ORDER BY b.created_at DESC`,
+      `SELECT 
+        b.*,
+        bm.role,
+        COUNT(t.task_id) AS total_tasks,
+        COUNT(CASE WHEN t.status = 'Done' THEN 1 END) AS completed_tasks,
+        CASE 
+          WHEN COUNT(t.task_id) = 0 THEN 0
+          ELSE ROUND((COUNT(CASE WHEN t.status = 'Done' THEN 1 END)::numeric / COUNT(t.task_id)) * 100)
+        END AS progress
+      FROM boards b
+      JOIN board_members bm ON bm.board_id = b.board_id
+      LEFT JOIN tasks t ON t.board_id = b.board_id
+      WHERE bm.user_id = $1
+      GROUP BY b.board_id, bm.role
+      ORDER BY b.created_at DESC;`
       [userId]
     );
 
@@ -125,10 +143,9 @@ async function getBoardTasks(req, res) {
     }
     const tasks = await pool.query(
       `SELECT * FROM tasks 
-       WHERE board_id = $1 
-       AND (creator_id = $2 OR assignee_id = $2)
-       ORDER BY created_at DESC`,
-      [id, userId]
+       WHERE board_id = $1,
+       ORDER BY position ASC`,
+      [id]
     );
 
     res.json(tasks.rows);

@@ -1,10 +1,10 @@
 -- 1. ENUM
-CREATE TYPE task_status AS ENUM ('Not Completed', 'Pending', 'Complete');
+CREATE TYPE task_status AS ENUM ('To Do', 'In Progress', 'Done');
 
 -- 2. Users
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
-    username VARCHAR(20) UNIQUE NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -18,8 +18,9 @@ CREATE TABLE tasks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     description TEXT,
-    status task_status DEFAULT 'Not Completed',
+    status task_status DEFAULT 'To Do',
     priority INTEGER DEFAULT 1,
+    position DOUBLE PRECISION DEFAULT 0,
     creator_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     assignee_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL
 );
@@ -50,3 +51,4 @@ CREATE INDEX idx_tasks_assignee ON tasks(assignee_id);
 CREATE INDEX idx_boards_owner ON boards(owner_id);
 CREATE INDEX idx_tasks_board ON tasks(board_id);
 CREATE INDEX idx_board_members_user ON board_members(user_id);
+CREATE INDEX idx_tasks_board_position ON tasks(board_id, position ASC);

@@ -15,7 +15,7 @@ async function request(endpoint, options = {}) {
   const data = await res.json();
 
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 && !endpoint.includes("/auth/login")) {
       localStorage.removeItem("token1");
       window.location.href = "/auth/login";
       return;
