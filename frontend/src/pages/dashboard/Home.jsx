@@ -25,7 +25,14 @@ export default function Home() {
     const fetchBoards = async () => {
       try {
         const data = await getUserBoards();
-        setBoards(data);
+        if (Array.isArray(data)) {
+        setBoards(data);          
+        }
+        else if (Array.isArray(data?.data)) {
+          setBoards(data.data);
+        } else {
+          setBoards([])
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -120,7 +127,7 @@ export default function Home() {
         )}
 
         {/* Boards */}
-        {!loading &&
+        {!loading && Array.isArray(boards) &&
           boards.map((board) => (
             <div
               key={board.board_id}

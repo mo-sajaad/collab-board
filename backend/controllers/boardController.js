@@ -67,7 +67,7 @@ async function getUserBoards(req, res) {
       LEFT JOIN tasks t ON t.board_id = b.board_id
       WHERE bm.user_id = $1
       GROUP BY b.board_id, bm.role
-      ORDER BY b.created_at DESC;`
+      ORDER BY b.created_at DESC`,
       [userId]
     );
 

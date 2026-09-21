@@ -12,10 +12,13 @@ async function request(endpoint, options = {}) {
     },
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (res.status === 401 && !endpoint.includes("/auth/login")) {
+    console.error(`API Error on ${endpoint} [Status ${res.status}]:`, data);
+
+    if (res.status === 401 && !endpoint.includes("/auth/")) {
+      console.warn("Unauthorized request. Clearing token and redirecting.");
       localStorage.removeItem("token1");
       window.location.href = "/auth/login";
       return;

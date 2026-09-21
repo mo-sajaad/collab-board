@@ -18,8 +18,8 @@ import { FaArrowLeft, FaPlus, FaTrash } from "react-icons/fa6";
 
 import Task from "../../components/Task";
 import ProgressBar from "../../components/ProgressBar";
-import { getBoard, deleteBoard } from "../../api/boards";
-import { getBoardTasks, updateTask, createTask } from "../../api/tasks";
+import { getBoard, deleteBoard, getBoardTasks } from "../../api/boards";
+import { updateTask, createTask } from "../../api/tasks";
 
 // Droppable Column Wrapper
 function DroppableColumn({ id, children }) {
