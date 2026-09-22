@@ -1,28 +1,69 @@
-import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { FaMagnifyingGlass, FaArrowRightFromBracket } from "react-icons/fa6";
+import { logoutUser } from "../api/auth";
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        setUser(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to parse user profile", e);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    logoutUser();
+    localStorage.removeItem("user");
+    navigate("/auth/login");
+  };
+
+  const initial = user?.username ? user.username.charAt(0).toUpperCase() : "U";
+
   return (
-    <header className="bg-background/80 border-border border-b-2 backdrop-blur-md text-white px-6 py-2 flex justify-between items-center sticky shadow-md top-0 z-50">
-      <NavLink to="/" className="text-2xl font-bold bg-linear-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-        BtecTrello
+    <header className="bg-background/80 border-b-2 border-border backdrop-blur-md px-4 sm:px-8 py-3 flex justify-between items-center sticky top-0 z-50 shadow-xs">
+      <NavLink
+        to="/"
+        className="text-2xl font-black bg-linear-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent hover:opacity-90 transition-opacity"
+      >
+        collab_board
       </NavLink>
-      {/* Search bar */}
-      <div className="flex m-1 mx-6 min-w-md border-2 border-border rounded-md">
+
+      {/* Responsive Search bar */}
+      <div className="hidden sm:flex items-center flex-1 max-w-md mx-6 relative">
+        <FaMagnifyingGlass className="absolute left-3.5 text-muted text-sm pointer-events-none" />
         <input
           type="text"
-          placeholder="Search boards..."
-          className="w-full px-4 py-2 rounded-md bg-card text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 ease-out"
+          placeholder="Search boards or tasks..."
+          className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg bg-card border border-border text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-green-400 transition-all duration-200"
         />
       </div>
 
-      {/* Navigation links */}
-      <div className="">
-        <NavLink
-          to="/auth/login"
-          className="text-white hover:text-red-500/80 hover:-translate-y-4 hover:scale-105 transition-all transform duration-300 hover:shadow-lg ease-in-out"
+      {/* User Info & Actions */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-muted/20 border border-border">
+          <div className="w-7 h-7 rounded-full bg-linear-to-r from-green-400 to-cyan-400 text-black font-bold text-xs flex items-center justify-center shadow-xs">
+            {initial}
+          </div>
+          <span className="text-sm font-medium text-foreground hidden md:inline-block max-w-[120px] truncate">
+            {user?.username || "Account"}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-muted hover:text-red-400 hover:bg-red-500/10 border border-border/80 transition-all duration-200 active:scale-95 cursor-pointer"
         >
-          Log out
-        </NavLink>
+          <FaArrowRightFromBracket className="text-xs" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );
