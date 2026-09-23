@@ -14,10 +14,11 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { FaArrowLeft, FaPlus, FaTrash } from "react-icons/fa6";
+import { FaArrowLeft, FaPlus, FaTrash, FaUserPlus } from "react-icons/fa6";
 
 import Task from "../../components/Task";
 import ProgressBar from "../../components/ProgressBar";
+import BoardMembersModal from "../../components/BoardMembersModal";
 import { getBoard, deleteBoard, getBoardTasks } from "../../api/boards";
 import { updateTask, createTask } from "../../api/tasks";
 
@@ -60,6 +61,8 @@ export default function Board() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
   // Helper to calculate fractional position
   const calculateNewPosition = (items, targetIndex) => {
@@ -318,15 +321,26 @@ export default function Board() {
       {/* Top Board Overview Card */}
       <div className="bg-card border-2 border-border rounded-xl p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-muted rounded-lg 
-              border border-border hover:bg-muted/20 hover:text-foreground transition-all duration-200 active:scale-95"
-          >
-            <FaArrowLeft className="text-xs" />
-            Dashboard
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-muted rounded-lg 
+                border border-border hover:bg-muted/20 hover:text-foreground transition-all duration-200 active:scale-95"
+            >
+              <FaArrowLeft className="text-xs" />
+              Dashboard
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsMembersModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-foreground rounded-lg border border-border hover:bg-muted/20 transition-all active:scale-95 cursor-pointer"
+            >
+              <FaUserPlus className="text-xs text-green-400" />
+              Members
+            </button>
+          </div>
 
           <button
             type="button"
@@ -504,6 +518,17 @@ export default function Board() {
           </div>
         </div>
       )}
+
+      <BoardMembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        boardId={boardId}
+        currentMembers={board?.members || []}
+        onMembersUpdated={() => {
+          getBoard(boardId).then((data) => setBoard(data));
+        }}
+        isOwner={board?.role === "owner"}
+      />
     </div>
   );
 }
