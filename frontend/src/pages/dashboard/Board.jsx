@@ -7,38 +7,17 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  useDroppable,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { FaArrowLeft, FaPlus, FaTrash, FaUserPlus } from "react-icons/fa6";
+import { arrayMove } from "@dnd-kit/sortable";
 
 import Task from "../../components/Task";
-import ProgressBar from "../../components/ProgressBar";
-import BoardMembersModal from "../../components/BoardMembersModal";
+import BoardHeader from "../../components/board/BoardHeader";
+import BoardColumn from "../../components/board/BoardColumn";
+import DeleteBoardModal from "../../components/board/DeleteBoardModal";
+import BoardMembersModal from "../../components/board/BoardMembersModal";
+
 import { getBoard, deleteBoard, getBoardTasks } from "../../api/boards";
 import { updateTask, createTask } from "../../api/tasks";
-
-// Droppable Column Wrapper
-function DroppableColumn({ id, children }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`flex flex-col gap-3 min-h-[220px] p-2 rounded-xl transition-all duration-200 ${
-        isOver
-          ? "bg-green-400/10 border-2 border-dashed border-green-400"
-          : "border-2 border-transparent"
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
 
 export default function Board() {
   const { id: boardId } = useParams();
@@ -55,35 +34,26 @@ export default function Board() {
 
   const [activeTask, setActiveTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [newTaskInputs, setNewTaskInputs] = useState({});
 
-  // Board deletion state
+  // Modals state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
-
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
-  // Helper to calculate fractional position
+  // Fractional Position Helper
   const calculateNewPosition = (items, targetIndex) => {
-    if (items.length === 0) {
-      return 1000;
-    }
-    // Placed at the very top
-    if (targetIndex === 0) {
-      return (Number(items[0].position) || 1000) / 2;
-    }
-    // Placed at the very bottom
-    if (targetIndex >= items.length) {
+    if (items.length === 0) return 1000;
+    if (targetIndex === 0) return (Number(items[0].position) || 1000) / 2;
+    if (targetIndex >= items.length)
       return (Number(items[items.length - 1].position) || 0) + 1000;
-    }
-    // Placed between two existing tasks
+
     const prevPos = Number(items[targetIndex - 1].position) || 0;
     const nextPos = Number(items[targetIndex].position) || prevPos + 1000;
     return (prevPos + nextPos) / 2;
   };
 
-  // Load Board Info & Tasks
+  // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -95,15 +65,10 @@ export default function Board() {
 
         setBoard(boardData);
 
-        const grouped = {
-          "To Do": [],
-          "In Progress": [],
-          Done: [],
-        };
+        const grouped = { "To Do": [], "In Progress": [], Done: [] };
 
         allTasks.forEach((task) => {
           if (boardId && Number(task.board_id) !== Number(boardId)) return;
-
           const status = stages.includes(task.status) ? task.status : "To Do";
 
           grouped[status]?.push({
@@ -118,7 +83,6 @@ export default function Board() {
           });
         });
 
-        // Ensure tasks inside each stage are sorted by position ascending
         stages.forEach((stage) => {
           grouped[stage].sort((a, b) => a.position - b.position);
         });
@@ -131,9 +95,7 @@ export default function Board() {
       }
     };
 
-    if (boardId) {
-      fetchData();
-    }
+    if (boardId) fetchData();
   }, [boardId, stages]);
 
   // Compute live progress percentage
@@ -147,12 +109,8 @@ export default function Board() {
   }, [tasksByStage]);
 
   // Add Task
-  const handleAddTask = async (stage) => {
-    const title = newTaskInputs[stage]?.trim();
-    if (!title) return;
-
+  const handleAddTask = async (stage, title) => {
     const columnTasks = tasksByStage[stage];
-    // Put newly added task at the top
     const newPosition =
       columnTasks.length > 0
         ? (Number(columnTasks[0].position) || 1000) / 2
@@ -181,11 +139,6 @@ export default function Board() {
         ...prev,
         [stage]: [formattedTask, ...prev[stage]],
       }));
-
-      setNewTaskInputs((prev) => ({
-        ...prev,
-        [stage]: "",
-      }));
     } catch (err) {
       console.error("Failed to create task", err);
     }
@@ -205,26 +158,21 @@ export default function Board() {
     }
   };
 
-  // Drag Sensors
+  // DnD Sensors & Logic
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const findContainer = (id) => {
     if (tasksByStage[id]) return id;
     for (const stage of stages) {
-      if (tasksByStage[stage].some((task) => task.id === id)) {
-        return stage;
-      }
+      if (tasksByStage[stage].some((task) => task.id === id)) return stage;
     }
     return null;
   };
 
-  const findTaskIndex = (stage, id) => {
-    return tasksByStage[stage].findIndex((t) => t.id === id);
-  };
+  const findTaskIndex = (stage, id) =>
+    tasksByStage[stage].findIndex((t) => t.id === id);
 
   const handleDragStart = ({ active }) => {
     const stage = findContainer(active.id);
@@ -243,10 +191,7 @@ export default function Board() {
     const fromStage = findContainer(activeId);
     let toStage = findContainer(overId);
 
-    if (stages.includes(overId)) {
-      toStage = overId;
-    }
-
+    if (stages.includes(overId)) toStage = overId;
     if (!fromStage || !toStage) return;
 
     const fromIndex = findTaskIndex(fromStage, activeId);
@@ -270,39 +215,21 @@ export default function Board() {
         const remaining = prev[fromStage].filter((t) => t.id !== activeId);
         computedPosition = calculateNewPosition(remaining, toIndex);
 
-        reordered[toIndex] = {
-          ...movedTask,
-          position: computedPosition,
-        };
-
-        return {
-          ...prev,
-          [fromStage]: reordered,
-        };
+        reordered[toIndex] = { ...movedTask, position: computedPosition };
+        return { ...prev, [fromStage]: reordered };
       }
 
       const destination = [...prev[toStage]];
       const targetIndex = isDroppingOnColumn ? destination.length : toIndex;
 
       computedPosition = calculateNewPosition(destination, targetIndex);
+      destination.splice(targetIndex, 0, { ...movedTask, position: computedPosition });
 
-      destination.splice(targetIndex, 0, {
-        ...movedTask,
-        position: computedPosition,
-      });
-
-      return {
-        ...prev,
-        [fromStage]: source,
-        [toStage]: destination,
-      };
+      return { ...prev, [fromStage]: source, [toStage]: destination };
     });
 
     try {
-      await updateTask(activeId, {
-        status: toStage,
-        position: computedPosition,
-      });
+      await updateTask(activeId, { status: toStage, position: computedPosition });
     } catch (err) {
       console.error("Failed to persist task movement", err);
     }
@@ -318,68 +245,21 @@ export default function Board() {
 
   return (
     <div className="p-2 sm:p-4 flex flex-col gap-4">
-      {/* Top Board Overview Card */}
-      <div className="bg-card border-2 border-border rounded-xl p-5 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-muted rounded-lg 
-                border border-border hover:bg-muted/20 hover:text-foreground transition-all duration-200 active:scale-95"
-            >
-              <FaArrowLeft className="text-xs" />
-              Dashboard
-            </button>
+      {/* Top Header */}
+      <BoardHeader
+        board={board}
+        progressPercent={progressPercent}
+        onOpenMembers={() => setIsMembersModalOpen(true)}
+        onOpenDelete={() => {
+          setDeleteError(null);
+          setIsDeleteModalOpen(true);
+        }}
+      />
 
-            <button
-              type="button"
-              onClick={() => setIsMembersModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-foreground rounded-lg border border-border hover:bg-muted/20 transition-all active:scale-95 cursor-pointer"
-            >
-              <FaUserPlus className="text-xs text-green-400" />
-              Members
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteError(null);
-              setIsDeleteModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-500 rounded-lg 
-              border border-red-500/20 hover:bg-red-500/10 transition-colors active:scale-95"
-          >
-            <FaTrash className="text-xs" />
-            Delete Board
-          </button>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              {board?.name || "Board"}
-            </h1>
-            <p className="text-sm text-muted mt-1">
-              {board?.description || "No description provided."}
-            </p>
-          </div>
-
-          <div className="w-full md:w-64 flex flex-col gap-1.5">
-            <div className="flex justify-between text-xs font-semibold text-muted">
-              <span>Overall Progress</span>
-              <span>{progressPercent}%</span>
-            </div>
-            <ProgressBar progress={progressPercent} />
-          </div>
-        </div>
-      </div>
-
-      {/* Brand Gradient Rule */}
+      {/* Brand Divider */}
       <hr className="h-1 rounded border-0 bg-linear-to-r from-green-400 to-cyan-400 my-1" />
 
-      {/* Board Columns Grid */}
+      {/* DnD Grid */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -388,81 +268,15 @@ export default function Board() {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           {stages.map((stage) => (
-            <div
+            <BoardColumn
               key={stage}
-              className="flex flex-col gap-3 bg-card border-2 border-border rounded-xl p-4 shadow-sm"
-            >
-              {/* Column Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-foreground">
-                    {stage}
-                  </h2>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted/20 text-muted">
-                    {tasksByStage[stage].length}
-                  </span>
-                </div>
-              </div>
-
-              {/* Add Task Input Form */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddTask(stage);
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  type="text"
-                  placeholder="New task..."
-                  value={newTaskInputs[stage] || ""}
-                  onChange={(e) =>
-                    setNewTaskInputs((prev) => ({
-                      ...prev,
-                      [stage]: e.target.value,
-                    }))
-                  }
-                  className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg outline-none 
-                    focus:ring-2 focus:ring-green-400 transition-all text-foreground"
-                />
-                <button
-                  type="submit"
-                  aria-label={`Add task to ${stage}`}
-                  className="px-3 py-1.5 bg-linear-to-r from-green-400 to-cyan-400 text-black font-semibold 
-                    rounded-lg text-sm hover:opacity-90 active:scale-95 transition-all"
-                >
-                  <FaPlus className="text-xs" />
-                </button>
-              </form>
-
-              {/* Droppable Area */}
-              <DroppableColumn id={stage}>
-                <SortableContext
-                  items={tasksByStage[stage].map((t) => t.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {tasksByStage[stage].length === 0 && (
-                    <div className="text-xs text-muted text-center py-8 border-2 border-dashed border-border rounded-lg">
-                      No tasks yet. Drop or add one above.
-                    </div>
-                  )}
-
-                  {tasksByStage[stage].map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => navigate(`/task/${task.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <Task id={task.id} task={task} />
-                    </div>
-                  ))}
-                </SortableContext>
-              </DroppableColumn>
-            </div>
+              stage={stage}
+              tasks={tasksByStage[stage]}
+              onAddTask={handleAddTask}
+            />
           ))}
         </div>
 
-        {/* Drag Overlay Preview */}
         <DragOverlay>
           {activeTask && (
             <div className="rotate-2 scale-105 opacity-90 pointer-events-none shadow-2xl">
@@ -472,52 +286,15 @@ export default function Board() {
         </DragOverlay>
       </DndContext>
 
-      {/* Delete Board Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
-        >
-          <div
-            className="bg-card border-2 border-border rounded-xl p-6 w-full max-w-sm shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-bold mb-2 text-foreground">
-              Delete Board
-            </h2>
-            <p className="text-sm text-muted mb-4">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">
-                "{board?.name || "this board"}"
-              </span>
-              ? All columns and tasks inside will be permanently removed.
-            </p>
-
-            {deleteError && (
-              <p className="text-xs text-red-500 mb-3">{deleteError}</p>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/20 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={handleDeleteBoard}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <DeleteBoardModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteBoard}
+        boardName={board?.name}
+        isDeleting={isDeleting}
+        error={deleteError}
+      />
 
       <BoardMembersModal
         isOpen={isMembersModalOpen}

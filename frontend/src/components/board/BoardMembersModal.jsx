@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FaUserPlus, FaTrash, FaXmark, FaUser } from "react-icons/fa6";
-import { addBoardMember, removeBoardMember } from "../api/boards";
+import { addBoardMember, removeBoardMember } from "../../api/boards";
 
 export default function BoardMembersModal({
   isOpen,
