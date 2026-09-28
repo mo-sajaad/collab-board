@@ -52,7 +52,7 @@ export default function Task({ id, task, isOverlay = false }) {
         </p>
 
         <p className="text-muted text-sm">
-          {task.description.length > 50
+          {task.description?.length > 50
             ? task.description.slice(0, 50) + "..."
             : task.description}
         </p>

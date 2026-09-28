@@ -17,7 +17,12 @@ import DeleteBoardModal from "../../components/board/DeleteBoardModal";
 import BoardMembersModal from "../../components/board/BoardMembersModal";
 
 import { getBoard, deleteBoard, getBoardTasks } from "../../api/boards";
-import { updateTask, createTask } from "../../api/tasks";
+import {
+  createTask,
+  getTask,
+  updateTask,
+  deleteTask,
+} from "../../api/tasks";
 
 export default function Board() {
   const { id: boardId } = useParams();
@@ -29,7 +34,7 @@ export default function Board() {
   const [tasksByStage, setTasksByStage] = useState({
     "To Do": [],
     "In Progress": [],
-    Done: [],
+    "Done": [],
   });
 
   const [activeTask, setActiveTask] = useState(null);
@@ -58,6 +63,7 @@ export default function Board() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Execute board metadata and board task requests in parallel
         const [boardData, allTasks] = await Promise.all([
           getBoard(boardId),
           getBoardTasks(boardId),
@@ -65,14 +71,18 @@ export default function Board() {
 
         setBoard(boardData);
 
-        const grouped = { "To Do": [], "In Progress": [], Done: [] };
+        // Initialize columns matching the defined stages
+        const grouped = { "To Do": [], "In Progress": [], "Done": [] };
 
         allTasks.forEach((task) => {
+          // Guard against mismatched board IDs if backend returns extra tasks
           if (boardId && Number(task.board_id) !== Number(boardId)) return;
+
+          // Fallback to "To Do" if task status is unknown/missing
           const status = stages.includes(task.status) ? task.status : "To Do";
 
           grouped[status]?.push({
-            id: String(task.task_id),
+            id: String(task.task_id || task.id),
             title: task.title,
             description: task.description,
             due_date: task.due_date,
@@ -83,6 +93,7 @@ export default function Board() {
           });
         });
 
+        // Sort tasks within each column by fractional position value
         stages.forEach((stage) => {
           grouped[stage].sort((a, b) => a.position - b.position);
         });
@@ -108,7 +119,7 @@ export default function Board() {
     return Math.round((tasksByStage["Done"].length / total) * 100);
   }, [tasksByStage]);
 
-  // Add Task
+  // Create Task API
   const handleAddTask = async (stage, title) => {
     const columnTasks = tasksByStage[stage];
     const newPosition =
@@ -125,7 +136,7 @@ export default function Board() {
       });
 
       const formattedTask = {
-        id: String(newTask.task_id),
+        id: String(newTask.task_id || newTask.id),
         title: newTask.title,
         description: newTask.description,
         due_date: newTask.due_date,
@@ -144,7 +155,53 @@ export default function Board() {
     }
   };
 
-  // Delete Board
+  // Get Single Task API
+  const handleFetchTask = async (taskId) => {
+    try {
+      const taskData = await getTask(taskId);
+      return taskData;
+    } catch (err) {
+      console.error(`Failed to fetch details for task ${taskId}`, err);
+      throw err;
+    }
+  };
+
+  // Update Task API (Title, Description, Due Date, etc.)
+  const handleUpdateTask = async (taskId, stage, updatedPayload) => {
+    try {
+      const updatedTask = await updateTask(taskId, updatedPayload);
+
+      setTasksByStage((prev) => ({
+        ...prev,
+        [stage]: prev[stage].map((task) =>
+          task.id === String(taskId)
+            ? {
+                ...task,
+                ...updatedTask,
+                id: String(updatedTask.task_id || updatedTask.id || taskId),
+              }
+            : task
+        ),
+      }));
+    } catch (err) {
+      console.error(`Failed to update task ${taskId}`, err);
+    }
+  };
+
+  // Delete Task API
+  const handleDeleteTask = async (taskId, stage) => {
+    try {
+      await deleteTask(taskId);
+      setTasksByStage((prev) => ({
+        ...prev,
+        [stage]: prev[stage].filter((t) => t.id !== String(taskId)),
+      }));
+    } catch (err) {
+      console.error(`Failed to delete task ${taskId}`, err);
+    }
+  };
+
+  // Delete Board API
   const handleDeleteBoard = async () => {
     setIsDeleting(true);
     setDeleteError(null);
@@ -273,6 +330,11 @@ export default function Board() {
               stage={stage}
               tasks={tasksByStage[stage]}
               onAddTask={handleAddTask}
+              onDeleteTask={(taskId) => handleDeleteTask(taskId, stage)}
+              onUpdateTask={(taskId, payload) =>
+                handleUpdateTask(taskId, stage, payload)
+              }
+              onFetchTask={handleFetchTask}
             />
           ))}
         </div>

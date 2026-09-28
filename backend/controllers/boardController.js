@@ -142,8 +142,8 @@ async function getBoardTasks(req, res) {
       return res.status(403).json({ error: "Access denied" });
     }
     const tasks = await pool.query(
-      `SELECT * FROM tasks 
-       WHERE board_id = $1,
+      `SELECT * FROM tasks
+       WHERE board_id = $1
        ORDER BY position ASC`,
       [id]
     );

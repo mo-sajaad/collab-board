@@ -9,9 +9,9 @@ async function createTask(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!title || !description) {
+    if (!title || !status) {
       return res.status(400).json({
-        error: "Title and description are required",
+        error: "Title and status are required",
       });
     }
 
@@ -68,7 +68,7 @@ async function getTask(req, res) {
     }
 
     const result = await pool.query(
-      `SELECT * FROM tasks WHERE id = $1`,
+      `SELECT * FROM tasks WHERE task_id = $1`,
       [id]
     );
 
@@ -164,7 +164,7 @@ async function deleteTask(req, res) {
 
     const result = await pool.query(
       `DELETE FROM tasks
-       WHERE id = $1 AND creator_id = $2
+       WHERE task_id = $1 AND creator_id = $2
        RETURNING *`,
       [id, userId]
     );

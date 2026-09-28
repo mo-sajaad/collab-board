@@ -9,6 +9,7 @@ import {
   FaTag,
 } from "react-icons/fa6";
 import { getTask, updateTask, deleteTask } from "../../api/tasks";
+import DeleteModal from "../../components/DeleteModal";
 
 export default function TaskOverview() {
   const navigate = useNavigate();
@@ -52,10 +53,14 @@ export default function TaskOverview() {
         setStatus(data.status || "To Do");
         setDescription(data.description || "");
         setDueDate(formatDateForInput(data.due_date || data.dueDate));
-        setCreatedAt(data.created_at || data.createdAt || new Date().toISOString());
+        setCreatedAt(
+          data.created_at || data.createdAt || new Date().toISOString()
+        );
       } catch (err) {
         console.error(err);
-        setFetchError("Failed to load task details. Please check your connection.");
+        setFetchError(
+          "Failed to load task details. Please check your connection."
+        );
       } finally {
         setInitialLoading(false);
       }
@@ -99,11 +104,14 @@ export default function TaskOverview() {
     }
   };
 
+  // FIXED: Reset modal states before calling navigate(-1)
   const handleDelete = async () => {
     setIsDeleting(true);
     setDeleteError(null);
     try {
       await deleteTask(id);
+      setIsDeleteModalOpen(false);
+      setIsDeleting(false);
       navigate(-1);
     } catch (err) {
       console.error(err);
@@ -143,7 +151,7 @@ export default function TaskOverview() {
             type="button"
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-muted rounded-lg 
-              border border-border hover:bg-muted/20 hover:text-foreground transition-all duration-200 active:scale-95"
+              border border-border hover:bg-muted/20 hover:text-foreground transition-all duration-200 active:scale-95 cursor-pointer"
           >
             <FaArrowLeft className="text-xs" />
             Back
@@ -157,7 +165,7 @@ export default function TaskOverview() {
                 setIsDeleteModalOpen(true);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-500 rounded-lg 
-                border border-red-500/20 hover:bg-red-500/10 transition-colors active:scale-95"
+                border border-red-500/20 hover:bg-red-500/10 transition-colors active:scale-95 cursor-pointer"
             >
               <FaTrash className="text-xs" />
               Delete
@@ -169,7 +177,7 @@ export default function TaskOverview() {
               disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg 
                 bg-linear-to-r from-green-400 to-cyan-400 text-black hover:opacity-90 
-                disabled:opacity-50 transition-all duration-200 active:scale-95"
+                disabled:opacity-50 transition-all duration-200 active:scale-95 cursor-pointer"
             >
               <FaFloppyDisk className="text-xs" />
               {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
@@ -269,50 +277,16 @@ export default function TaskOverview() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
-        >
-          <div
-            className="bg-card border-2 border-border rounded-xl p-6 w-full max-w-sm shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-bold mb-2 text-foreground">
-              Delete Task
-            </h2>
-            <p className="text-sm text-muted mb-4">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">"{title}"</span>?
-              This action cannot be undone.
-            </p>
-
-            {deleteError && (
-              <p className="text-xs text-red-500 mb-3">{deleteError}</p>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/20 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={handleDelete}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Modal */}
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => !isDeleting && setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${title || "this task"}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
+        error={deleteError}
+      />
     </div>
   );
 }

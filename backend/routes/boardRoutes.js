@@ -16,7 +16,7 @@ const {
 
 router.post("/:id/members", authMiddleware, addBoardMember);
 router.delete("/:id/members/:userId", authMiddleware, removeBoardMember);
-router.get(":id/tasks", authMiddleware, getBoardTasks)
+router.get("/:id/tasks", authMiddleware, getBoardTasks)
 
 router.post("/", authMiddleware, createBoard);
 router.get("/", authMiddleware, getUserBoards);

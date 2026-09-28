@@ -21,8 +21,8 @@ export const getBoard = (id) => {
 
 // Get board tasks
 export const getBoardTasks = (boardId) => {
-  return request(`/boards/${boardId}/tasks`)
-}
+  return request(`/boards/${boardId}/tasks`);
+};
 
 // Update board
 export const updateBoard = (id, payload) => {
