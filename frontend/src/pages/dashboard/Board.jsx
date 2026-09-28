@@ -13,8 +13,8 @@ import { arrayMove } from "@dnd-kit/sortable";
 import Task from "../../components/Task";
 import BoardHeader from "../../components/board/BoardHeader";
 import BoardColumn from "../../components/board/BoardColumn";
-import DeleteBoardModal from "../../components/board/DeleteBoardModal";
 import BoardMembersModal from "../../components/board/BoardMembersModal";
+import DeleteModal from "../../components/DeleteModal";
 
 import { getBoard, deleteBoard, getBoardTasks } from "../../api/boards";
 import {
@@ -349,11 +349,20 @@ export default function Board() {
       </DndContext>
 
       {/* Modals */}
-      <DeleteBoardModal
+      <DeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteBoard}
-        boardName={board?.name}
+        title="Delete Board"
+        message={
+          <>
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-foreground">
+              "{board?.name || "this board"}"
+            </span>
+            ? All columns and tasks inside will be permanently removed.
+          </>
+        }
         isDeleting={isDeleting}
         error={deleteError}
       />

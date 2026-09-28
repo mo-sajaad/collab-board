@@ -277,13 +277,21 @@ export default function TaskOverview() {
         </div>
       </div>
 
-      {/* Delete Modal */}
+      {/* Modals */}
       <DeleteModal
         isOpen={isDeleteModalOpen}
-        onClose={() => !isDeleting && setIsDeleteModalOpen(false)}
+        onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDelete}
         title="Delete Task"
-        message={`Are you sure you want to delete "${title || "this task"}"? This action cannot be undone.`}
+        message={
+          <>
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-foreground">
+              "{title || "this task"}"
+            </span>
+            ? This action cannot be undone.
+          </>
+        }
         isDeleting={isDeleting}
         error={deleteError}
       />

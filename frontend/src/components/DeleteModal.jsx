@@ -1,11 +1,9 @@
-// src/components/common/DeleteModal.jsx
-
 export default function DeleteModal({
   isOpen,
   onClose,
   onConfirm,
-  title = "Confirm Delete",
-  message = "Are you sure you want to delete this item? This action cannot be undone.",
+  title = "Delete Item",
+  message = "Are you sure you want to delete this? This action cannot be undone.",
   isDeleting = false,
   error = null,
 }) {
