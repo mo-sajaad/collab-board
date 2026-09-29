@@ -375,7 +375,6 @@ export default function Board() {
         onMembersUpdated={() => {
           getBoard(boardId).then((data) => setBoard(data));
         }}
-        isOwner={board?.role === "owner"}
       />
     </div>
   );

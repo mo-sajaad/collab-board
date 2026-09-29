@@ -262,7 +262,7 @@ async function getBoardMembers(req, res) {
          u.email, 
          u.username 
        FROM board_members bm
-       JOIN users u ON bm.user_id = u.id
+       JOIN users u ON bm.user_id = u.user_id
        WHERE bm.board_id = $1`,
       [id]
     );
@@ -277,10 +277,22 @@ async function getBoardMembers(req, res) {
 
 async function addBoardMember(req, res) {
   const { id } = req.params;
-  const { user_id, role = "member" } = req.body;
+  const { email, role = "member" } = req.body;
   const ownerId = req.user?.id;
 
   try {
+    // Email Validation
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ error: "Email address is required" });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // Owner?
     const board = await pool.query(
       `SELECT * FROM boards WHERE board_id = $1`,
       [id]
@@ -290,21 +302,47 @@ async function addBoardMember(req, res) {
       return res.status(404).json({ error: "Board not found" });
     }
 
-    if (board.rows[0].owner_id !== ownerId) {
-      return res.status(403).json({ error: "Only owner can add members" });
+    if (Number(board.rows[0].owner_id) !== Number(ownerId)) {
+      return res.status(403).json({ error: "Only the board owner can add members" });
     }
 
+    // 3. Lookup Target User by Email
+    const userResult = await pool.query(
+      `SELECT user_id, email, username FROM users WHERE LOWER(email) = $1`,
+      [trimmedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User with this email does not exist" });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // 4. Prevent Owner from Adding Themselves
+    if (Number(targetUser.user_id) === Number(ownerId)) {
+      return res.status(400).json({ error: "You are already the owner of this board" });
+    }
+
+    // 5. Insert Target User into board_members
     const result = await pool.query(
       `INSERT INTO board_members (board_id, user_id, role)
        VALUES ($1, $2, $3)
        ON CONFLICT (board_id, user_id) DO NOTHING
        RETURNING *`,
-      [id, user_id, role]
+      [id, targetUser.user_id, role]
     );
 
-    return res.json({
-      message: "Member added",
-      data: result.rows[0],
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "User is already a member of this board" });
+    }
+
+    return res.status(201).json({
+      message: "Member added successfully",
+      data: {
+        ...result.rows[0],
+        email: targetUser.email,
+        username: targetUser.username,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -312,13 +350,16 @@ async function addBoardMember(req, res) {
   }
 }
 
-
 async function removeBoardMember(req, res) {
   const { id } = req.params;
   const { user_id } = req.body;
   const ownerId = req.user?.id;
 
   try {
+    if (!user_id) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
     const board = await pool.query(
       `SELECT * FROM boards WHERE board_id = $1`,
       [id]
@@ -328,15 +369,25 @@ async function removeBoardMember(req, res) {
       return res.status(404).json({ error: "Board not found" });
     }
 
-    if (board.rows[0].owner_id !== ownerId) {
+    if (Number(board.rows[0].owner_id) !== Number(ownerId)) {
       return res.status(403).json({ error: "Only owner can remove members" });
     }
 
-    await pool.query(
+    // Prevent owner from eemoving themselves
+    if (Number(user_id) === Number(ownerId)) {
+      return res.status(400).json({ error: "Board owner cannot be removed" });
+    }
+
+    const deleteResult = await pool.query(
       `DELETE FROM board_members
-       WHERE board_id = $1 AND user_id = $2`,
+       WHERE board_id = $1 AND user_id = $2
+       RETURNING *`,
       [id, user_id]
     );
+
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ error: "User is not a member of this board" });
+    }
 
     return res.json({
       message: "Member removed successfully",

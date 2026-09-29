@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FaUserPlus, FaTrash, FaXmark, FaUser, FaCrown } from "react-icons/fa6";
 import { addBoardMember, removeBoardMember, getBoardMembers } from "../../api/boards";
+import { getCurrentUser } from "../../utils/auth";
 
 export default function BoardMembersModal({
   isOpen,
   onClose,
   boardId,
-  isOwner = false,
 }) {
+
+  const emailInputRef = useRef(null);
+
   const [members, setMembers] = useState([]);
   const [fetchingMembers, setFetchingMembers] = useState(false);
   const [email, setEmail] = useState("");
@@ -16,9 +19,21 @@ export default function BoardMembersModal({
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.id
+  const currentUserMember = members.find(
+    (m) => String(m.user_id || m.id) === String(currentUserId)
+  );
+  const isOwner = currentUserMember?.role === "owner";
+
   // Fetch members whenever the modal opens
   useEffect(() => {
     if (!isOpen || !boardId) return;
+
+    const timer = setTimeout(() => {
+      emailInputRef?.current?.focus();
+    }, 50)
 
     const fetchMembers = async () => {
       setFetchingMembers(true);
@@ -35,6 +50,8 @@ export default function BoardMembersModal({
     };
 
     fetchMembers();
+
+    return () => clearTimeout(timer)
   }, [isOpen, boardId]);
 
   if (!isOpen) return null;
@@ -74,7 +91,7 @@ export default function BoardMembersModal({
     setRemovingId(userId);
     setError(null);
     try {
-      await removeBoardMember(boardId, { user_id: userId });
+      await removeBoardMember(boardId, userId);
       await refreshMembers();
     } catch (err) {
       console.error(err);
@@ -116,6 +133,7 @@ export default function BoardMembersModal({
             </label>
             <div className="flex gap-2">
               <input
+                ref={emailInputRef}
                 type="email"
                 placeholder="colleague@example.com"
                 value={email}
