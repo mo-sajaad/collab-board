@@ -80,7 +80,6 @@ export default function BoardColumn({ stage, tasks, onAddTask }) {
           {tasks.map((task) => (
             <div
               key={task.id}
-              onClick={() => navigate(`/task/${task.id}`)}
               className="cursor-pointer"
             >
               <Task id={task.id} task={task} />

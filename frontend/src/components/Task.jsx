@@ -61,6 +61,7 @@ export default function Task({ id, task, isOverlay = false }) {
       
       <div
         {...(!isOverlay ? listeners : {})}
+        onClick={(e) => {e.stopPropagation()}}
         className="p-2 cursor-grab active:cursor-grabbing text-muted hover:text-foreground transition-colors duration-200"
       >
         <FaGripLines className="text-xl" />
