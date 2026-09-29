@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft, FaTrash, FaUserPlus } from "react-icons/fa6";
 import ProgressBar from "../ProgressBar";
+import { getCurrentUser } from "../../utils/auth";
 
 export default function BoardHeader({
   board,
@@ -9,6 +10,10 @@ export default function BoardHeader({
   onOpenDelete,
 }) {
   const navigate = useNavigate();
+
+  const currentUser = getCurrentUser();
+
+  const isOwner = Number(board?.owner_id) === Number(currentUser?.id)
 
   return (
     <div className="bg-card border-2 border-border rounded-xl p-5 shadow-sm flex flex-col gap-4">
@@ -33,8 +38,8 @@ export default function BoardHeader({
             Members
           </button>
         </div>
-
-        <button
+        
+        {isOwner && <button
           type="button"
           onClick={onOpenDelete}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-500 rounded-lg 
@@ -43,6 +48,7 @@ export default function BoardHeader({
           <FaTrash className="text-xs" />
           Delete Board
         </button>
+        }
       </div>
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
