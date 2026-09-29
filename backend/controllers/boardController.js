@@ -210,18 +210,25 @@ async function deleteBoard(req, res) {
       return res.status(400).json({ error: "Valid board ID required" });
     }
 
-    const result = await pool.query(
-      `DELETE FROM boards
-       WHERE board_id = $1 AND owner_id = $2
-       RETURNING *`,
-      [id, userId]
-    );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        error: "Board not found or not allowed",
-      });
+    const boardCheck = await pool.query(
+      `SELECT owner_id FROM boards WHERE board_id = $1`
+    [id]);
+
+    if (boardCheck.rows.lengtjh === 0) {
+      return res.status(404).json({ error: "Board not found" })
     }
+
+    const board = boardCheck.rows[0];
+    
+    if (Number(board.owner_id) !== Number(userId)) {
+      return res.status(403).json({ error: "Only the board owner can delete this board" })
+    }
+
+    const result = await pool.query(
+      `DELETE FROM boards WHERE board_id = $1 RETURNING *`,
+      [id]
+    );
 
     return res.json({
       message: "Board deleted successfully",
