@@ -1,9 +1,9 @@
 # Kanban Task Manager — Full-Stack Trello Clone
 
-![React](https://shields.io)
-![Node.js](https://shields.io)
-![PostgreSQL](https://shields.io)
-![Tailwind CSS](https://shields.io)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
 A full-stack, responsive web application for real-time task management, project planning, and team collaboration built with React, Node.js, Express, and PostgreSQL. 
 
