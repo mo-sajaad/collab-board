@@ -11,11 +11,13 @@ const {
   deleteBoard,
   addBoardMember,
   removeBoardMember,
+  getBoardMembers,
   getBoardTasks
 } = require("../controllers/boardController");
 
 router.post("/:id/members", authMiddleware, addBoardMember);
 router.delete("/:id/members/:userId", authMiddleware, removeBoardMember);
+router.get("/:id/members", authMiddleware, getBoardMembers)
 router.get("/:id/tasks", authMiddleware, getBoardTasks)
 
 router.post("/", authMiddleware, createBoard);

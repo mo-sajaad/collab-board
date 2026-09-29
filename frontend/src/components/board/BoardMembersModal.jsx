@@ -1,21 +1,52 @@
-import { useState } from "react";
-import { FaUserPlus, FaTrash, FaXmark, FaUser } from "react-icons/fa6";
-import { addBoardMember, removeBoardMember } from "../../api/boards";
+import { useState, useEffect } from "react";
+import { FaUserPlus, FaTrash, FaXmark, FaUser, FaCrown } from "react-icons/fa6";
+import { addBoardMember, removeBoardMember, getBoardMembers } from "../../api/boards";
 
 export default function BoardMembersModal({
   isOpen,
   onClose,
   boardId,
-  currentMembers = [],
-  onMembersUpdated,
   isOwner = false,
 }) {
+  const [members, setMembers] = useState([]);
+  const [fetchingMembers, setFetchingMembers] = useState(false);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // Fetch members whenever the modal opens
+  useEffect(() => {
+    if (!isOpen || !boardId) return;
+
+    const fetchMembers = async () => {
+      setFetchingMembers(true);
+      setError(null);
+      try {
+        const data = await getBoardMembers(boardId);
+        setMembers(data);
+      } catch (err) {
+        console.error("Failed to fetch board members", err);
+        setError("Could not load board members.");
+      } finally {
+        setFetchingMembers(false);
+      }
+    };
+
+    fetchMembers();
+  }, [isOpen, boardId]);
+
   if (!isOpen) return null;
+
+  const refreshMembers = async () => {
+    try {
+      const data = await getBoardMembers(boardId);
+      setMembers(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -29,7 +60,8 @@ export default function BoardMembersModal({
       await addBoardMember(boardId, { email: email.trim(), role: "member" });
       setSuccess(`Added ${email} to board!`);
       setEmail("");
-      if (onMembersUpdated) onMembersUpdated();
+      await refreshMembers();
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to add member. Check email address.");
@@ -39,12 +71,16 @@ export default function BoardMembersModal({
   };
 
   const handleRemoveMember = async (userId) => {
+    setRemovingId(userId);
+    setError(null);
     try {
       await removeBoardMember(boardId, { user_id: userId });
-      if (onMembersUpdated) onMembersUpdated();
+      await refreshMembers();
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to remove member.");
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -66,13 +102,13 @@ export default function BoardMembersModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-muted hover:text-foreground transition-colors cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors cursor-pointer p-1"
           >
             <FaXmark />
           </button>
         </div>
 
-        {/* Add Member Form (Owner only) */}
+        {/* Invite Form */}
         {isOwner ? (
           <form onSubmit={handleAddMember} className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-muted">
@@ -102,6 +138,7 @@ export default function BoardMembersModal({
           </p>
         )}
 
+        {/* Feedback Banners */}
         {error && (
           <div className="p-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg">
             {error}
@@ -116,40 +153,56 @@ export default function BoardMembersModal({
         {/* Member List */}
         <div className="flex flex-col gap-2 mt-2">
           <span className="text-xs font-semibold text-muted">
-            Current Members ({currentMembers.length})
+            Current Members ({members.length})
           </span>
           <div className="max-h-48 overflow-y-auto flex flex-col gap-2 pr-1">
-            {currentMembers.map((member) => (
-              <div
-                key={member.user_id || member.id}
-                className="flex items-center justify-between p-2.5 bg-background border border-border rounded-lg"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-muted/20 border border-border flex items-center justify-center text-xs font-bold text-foreground">
-                    <FaUser className="text-[10px]" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground leading-tight">
-                      {member.username || member.email}
-                    </span>
-                    <span className="text-[10px] text-muted capitalize">
-                      {member.role || "member"}
-                    </span>
-                  </div>
-                </div>
+            {fetchingMembers ? (
+              <p className="text-xs text-muted text-center py-4">Loading members...</p>
+            ) : members.length === 0 ? (
+              <p className="text-xs text-muted text-center py-4">No members found.</p>
+            ) : (
+              members.map((member) => {
+                const targetId = member.user_id || member.id;
+                const isMemberOwner = member.role === "owner";
 
-                {isOwner && member.role !== "owner" && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMember(member.user_id)}
-                    className="p-1.5 text-xs text-muted hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer"
-                    title="Remove member"
+                return (
+                  <div
+                    key={targetId}
+                    className="flex items-center justify-between p-2.5 bg-background border border-border rounded-lg"
                   >
-                    <FaTrash />
-                  </button>
-                )}
-              </div>
-            ))}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-muted/20 border border-border flex items-center justify-center text-xs font-bold text-foreground">
+                        {isMemberOwner ? (
+                          <FaCrown className="text-yellow-400 text-[10px]" />
+                        ) : (
+                          <FaUser className="text-[10px]" />
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground leading-tight">
+                          {member.username || member.email}
+                        </span>
+                        <span className="text-[10px] text-muted capitalize">
+                          {member.role || "member"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {isOwner && !isMemberOwner && (
+                      <button
+                        type="button"
+                        disabled={removingId === targetId}
+                        onClick={() => handleRemoveMember(targetId)}
+                        className="p-1.5 text-xs text-muted hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                        title="Remove member"
+                      >
+                        {removingId === targetId ? "..." : <FaTrash />}
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

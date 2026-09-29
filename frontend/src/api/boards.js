@@ -54,3 +54,8 @@ export const removeBoardMember = (boardId, payload) => {
     body: JSON.stringify(payload),
   });
 };
+
+//Get board members
+export const getBoardMembers = (boardId) => {
+  return request(`/boards/${boardId}/members`);
+}

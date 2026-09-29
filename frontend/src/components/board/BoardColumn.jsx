@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { FaPlus } from "react-icons/fa6";
@@ -23,7 +22,6 @@ function DroppableColumn({ id, children }) {
 }
 
 export default function BoardColumn({ stage, tasks, onAddTask }) {
-  const navigate = useNavigate();
   const [inputTitle, setInputTitle] = useState("");
 
   const handleSubmit = (e) => {

@@ -118,6 +118,41 @@ async function getBoard(req, res) {
   }
 }
 
+async function getBoardMembers(req, res) {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorised "})
+    }
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: "Valid board ID required" })
+    }
+
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM board_members 
+      WHERE board_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (memberCheck.rows.length == 0) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const members = await pool.query(`
+      SELECT * FROM board_members
+      WHERE board_id = $1`,
+    [id, userId]);
+
+    res.json(members.rows);
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "Server error"});
+  }
+}
+
 async function getBoardTasks(req, res) {
   const { id } = req.params;
   const userId = req.user.id;
@@ -125,7 +160,7 @@ async function getBoardTasks(req, res) {
   try {
 
     if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: "Unauthorised" });
     }
 
     if (!id || isNaN(id)) {
@@ -313,4 +348,5 @@ module.exports = {
   deleteBoard,
   addBoardMember,
   removeBoardMember,
+  getBoardMembers
 };
