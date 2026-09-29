@@ -118,40 +118,7 @@ async function getBoard(req, res) {
   }
 }
 
-async function getBoardMembers(req, res) {
-  const { id } = req.params;
-  const userId = req.user.id;
 
-  try {
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorised "})
-    }
-
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: "Valid board ID required" })
-    }
-
-    const memberCheck = await pool.query(
-      `SELECT 1 FROM board_members 
-      WHERE board_id = $1 AND user_id = $2`,
-      [id, userId]
-    );
-
-    if (memberCheck.rows.length == 0) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    const members = await pool.query(`
-      SELECT * FROM board_members
-      WHERE board_id = $1`,
-    [id, userId]);
-
-    res.json(members.rows);
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: "Server error"});
-  }
-}
 
 async function getBoardTasks(req, res) {
   const { id } = req.params;
@@ -260,6 +227,47 @@ async function deleteBoard(req, res) {
       message: "Board deleted successfully",
       data: result.rows[0],
     });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
+async function getBoardMembers(req, res) {
+  const { id } = req.params;
+  const userId = req.user?.id;
+
+  try {
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: "Valid board ID required" });
+    }
+    
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM board_members WHERE board_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const members = await pool.query(
+      `SELECT 
+         bm.user_id, 
+         bm.role, 
+         u.email, 
+         u.username 
+       FROM board_members bm
+       JOIN users u ON bm.user_id = u.id
+       WHERE bm.board_id = $1`,
+      [id]
+    );
+
+    return res.json(members.rows);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
