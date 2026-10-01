@@ -195,7 +195,7 @@ async function updateBoard(req, res) {
     const io = req.app.get("io");
 
     if (io) {
-      io.to(`board_${boardId}`).emit("board_updated", updatedBoard)
+      io.to(`board_${id}`).emit("board_updated", updatedBoard)
     }
 
     return res.json({
@@ -237,6 +237,14 @@ async function deleteBoard(req, res) {
       `DELETE FROM boards WHERE board_id = $1 RETURNING *`,
       [id]
     );
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${id}`).emit("board_deleted", { board_Id: id})
+    }
+
+
 
     return res.json({
       message: "Board deleted successfully",
@@ -321,7 +329,7 @@ async function addBoardMember(req, res) {
       return res.status(403).json({ error: "Only the board owner can add members" });
     }
 
-    // 3. Lookup Target User by Email
+    // Lookup by email (not id)
     const userResult = await pool.query(
       `SELECT user_id, email, username FROM users WHERE LOWER(email) = $1`,
       [trimmedEmail]
@@ -333,12 +341,11 @@ async function addBoardMember(req, res) {
 
     const targetUser = userResult.rows[0];
 
-    // 4. Prevent Owner from Adding Themselves
+    // Prevent Owner from Adding Themselves
     if (Number(targetUser.user_id) === Number(ownerId)) {
       return res.status(400).json({ error: "You are already the owner of this board" });
     }
 
-    // 5. Insert Target User into board_members
     const result = await pool.query(
       `INSERT INTO board_members (board_id, user_id, role)
        VALUES ($1, $2, $3)
@@ -351,13 +358,21 @@ async function addBoardMember(req, res) {
       return res.status(400).json({ error: "User is already a member of this board" });
     }
 
+    const newMember = {
+      ...result.rows[0],
+      email: targetUser.email,
+      username: targetUser.username,
+    };
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${id}`).emit("member_added", newMember)
+    }
+
     return res.status(201).json({
       message: "Member added successfully",
-      data: {
-        ...result.rows[0],
-        email: targetUser.email,
-        username: targetUser.username,
-      },
+      data: newMember,
     });
   } catch (err) {
     console.error(err);
@@ -402,6 +417,12 @@ async function removeBoardMember(req, res) {
 
     if (deleteResult.rows.length === 0) {
       return res.status(404).json({ error: "User is not a member of this board" });
+    }
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${id}`).emit("member_removed", { user_id })
     }
 
     return res.json({
