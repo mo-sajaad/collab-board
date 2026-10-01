@@ -177,22 +177,30 @@ async function updateBoard(req, res) {
       return res.status(404).json({ error: "Board not found" });
     }
 
-    if (board.rows[0].owner_id !== userId) {
+    if (Number(board.rows[0].owner_id) !== Number(userId)) {
       return res.status(403).json({ error: "Only owner can update board" });
     }
 
     const result = await pool.query(
       `UPDATE boards
-       SET name = $1,
-           description = $2
+       SET name = COALESCE($1, name),
+           description = COALESCE($2, description)
        WHERE board_id = $3
        RETURNING *`,
       [name, description, id]
     );
 
+    const updatedBoard = result.rows[0];
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${boardId}`).emit("board_updated", updatedBoard)
+    }
+
     return res.json({
       message: "Board updated successfully",
-      data: result.rows[0],
+      data: updatedBoard,
     });
   } catch (err) {
     console.error(err);
