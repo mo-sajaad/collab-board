@@ -23,7 +23,15 @@ async function createTask(req, res) {
       [title, description, due_date, priority, status, position, userId, board_id]
     );
 
-    return res.status(201).json(result.rows[0]);
+    const newTask = result.rows[0]
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${board_id}`).emit("task_created", newTask)
+    }
+
+    return res.status(201).json(newTask);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to create task" });
@@ -55,7 +63,7 @@ async function getUserTasks(req, res) {
 
 
 async function getTask(req, res) {
-  const { id } = req.params;
+  const { task_id } = req.params;
   const userId = req.user?.id;
 
   try {
@@ -63,13 +71,13 @@ async function getTask(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!id || isNaN(id)) {
+    if (!task_id || isNaN(task_id)) {
       return res.status(400).json({ error: "Valid task ID required" });
     }
 
     const result = await pool.query(
       `SELECT * FROM tasks WHERE task_id = $1`,
-      [id]
+      [task_id]
     );
 
     if (result.rows.length === 0) {
@@ -85,7 +93,7 @@ async function getTask(req, res) {
 
 
 async function updateTask(req, res) {
-  const { id } = req.params;
+  const { task_id } = req.params;
   const userId = req.user?.id;
   const { title, description, due_date, priority, board_id, status, position } =
     req.body;
@@ -95,14 +103,14 @@ async function updateTask(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!id || isNaN(id)) {
+    if (!task_id || isNaN(task_id)) {
       return res.status(400).json({ error: "Valid task ID required" });
     }
 
     // 1. Check existence and permissions using task_id
     const existing = await pool.query(
       `SELECT creator_id FROM tasks WHERE task_id = $1`,
-      [id]
+      [task_id]
     );
 
     if (existing.rows.length === 0) {
@@ -134,13 +142,21 @@ async function updateTask(req, res) {
         board_id ?? null,
         status ?? null,
         position ?? null,
-        id,
+        task_id,
       ]
     );
 
+    updatedTask = result.rows[0]
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${board_id}`).emit("task_updated", updatedTask)
+    }
+
     return res.json({
       message: "Task updated successfully",
-      data: result.rows[0],
+      data: updatedTask,
     });
   } catch (err) {
     console.error("Error in updateTask:", err);
@@ -150,7 +166,7 @@ async function updateTask(req, res) {
 
 
 async function deleteTask(req, res) {
-  const { id } = req.params;
+  const { task_id } = req.params;
   const userId = req.user?.id;
 
   try {
@@ -158,7 +174,7 @@ async function deleteTask(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!id || isNaN(id)) {
+    if (!task_id || isNaN(task_id)) {
       return res.status(400).json({ error: "Valid task ID required" });
     }
 
@@ -166,13 +182,19 @@ async function deleteTask(req, res) {
       `DELETE FROM tasks
        WHERE task_id = $1 AND creator_id = $2
        RETURNING *`,
-      [id, userId]
+      [task_id, userId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         error: "Task not found or not allowed",
       });
+    }
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to(`board_${board_id}`).emit("task_deleted", { task_id })
     }
 
     return res.json({
