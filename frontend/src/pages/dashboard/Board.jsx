@@ -23,12 +23,28 @@ import {
   updateTask,
   deleteTask,
 } from "../../api/tasks";
+import { socket } from "../../utils/socket";
+
+const STAGES = ["To Do", "In Progress", "Done"]
+
+// Helper to format raw DB tasks consistently across REST and Sockets
+const formatTask = (task) => ({
+  id: String(task.task_id || task.id),
+  title: task.title,
+  description: task.description,
+  due_date: task.due_date,
+  status: STAGES.includes(task.status) ? task.status : "To Do",
+  position:
+    task.position !== null && task.position !== undefined
+      ? Number(task.position)
+      : 1000,
+});
 
 export default function Board() {
   const { id: boardId } = useParams();
   const navigate = useNavigate();
 
-  const stages = useMemo(() => ["To Do", "In Progress", "Done"], []);
+  const stages = useMemo(() => STAGES, []);
 
   const [board, setBoard] = useState(null);
   const [tasksByStage, setTasksByStage] = useState({
@@ -58,42 +74,33 @@ export default function Board() {
     return (prevPos + nextPos) / 2;
   };
 
-  // Fetch Data
+  // Fetch Initial Data & Initialize Socket Lifecycle
   useEffect(() => {
+    if (!boardId) return;
+
+    let isMounted = true;
+
+    // 1. Initial REST API Fetch
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Execute board metadata and board task requests in parallel
         const [boardData, allTasks] = await Promise.all([
           getBoard(boardId),
           getBoardTasks(boardId),
         ]);
 
+        if (!isMounted) return;
+
         setBoard(boardData);
 
-        // Initialize columns matching the defined stages
         const grouped = { "To Do": [], "In Progress": [], "Done": [] };
 
         allTasks.forEach((task) => {
-          // Guard against mismatched board IDs if backend returns extra tasks
           if (boardId && Number(task.board_id) !== Number(boardId)) return;
-
-          // Fallback to "To Do" if task status is unknown/missing
-          const status = stages.includes(task.status) ? task.status : "To Do";
-
-          grouped[status]?.push({
-            id: String(task.task_id || task.id),
-            title: task.title,
-            description: task.description,
-            due_date: task.due_date,
-            position:
-              task.position !== null && task.position !== undefined
-                ? Number(task.position)
-                : 1000,
-          });
+          const formatted = formatTask(task);
+          grouped[formatted.status]?.push(formatted);
         });
 
-        // Sort tasks within each column by fractional position value
         stages.forEach((stage) => {
           grouped[stage].sort((a, b) => a.position - b.position);
         });
@@ -102,12 +109,89 @@ export default function Board() {
       } catch (err) {
         console.error("Failed to load board data", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    if (boardId) fetchData();
-  }, [boardId, stages]);
+    fetchData();
+
+    // 2. Connect to Socket Server and Join Room
+    socket.connect();
+    socket.emit("join_board", boardId);
+
+    // Socket Event Listeners
+
+    // Task Created by another user
+    socket.on("task_created", (newTask) => {
+      const formatted = formatTask(newTask);
+      setTasksByStage((prev) => {
+        const targetStage = formatted.status;
+        const exists = prev[targetStage].some((t) => t.id === formatted.id);
+        if (exists) return prev;
+
+        const updatedColumn = [...prev[targetStage], formatted].sort(
+          (a, b) => a.position - b.position
+        );
+
+        return { ...prev, [targetStage]: updatedColumn };
+      });
+    });
+
+    // Task Updated / Moved by another user
+    socket.on("task_updated", (updatedTask) => {
+      const formatted = formatTask(updatedTask);
+
+      setTasksByStage((prev) => {
+        const newGrouped = { "To Do": [], "In Progress": [], "Done": [] };
+
+        stages.forEach((stage) => {
+          newGrouped[stage] = prev[stage].filter((t) => t.id !== formatted.id);
+        });
+
+        newGrouped[formatted.status].push(formatted);
+        newGrouped[formatted.status].sort((a, b) => a.position - b.position);
+
+        return newGrouped;
+      });
+    });
+
+    // Task Deleted by another user
+    socket.on("task_deleted", ({ taskId }) => {
+      const targetId = String(taskId);
+      setTasksByStage((prev) => {
+        const newGrouped = { ...prev };
+        stages.forEach((stage) => {
+          newGrouped[stage] = newGrouped[stage].filter((t) => t.id !== targetId);
+        });
+        return newGrouped;
+      });
+    });
+
+    // Board Details Updated
+    socket.on("board_updated", (updatedBoard) => {
+      setBoard((prev) => ({ ...prev, ...updatedBoard }));
+    });
+
+    // Board Deleted by Owner
+    socket.on("board_deleted", () => {
+      navigate("/");
+    });
+
+
+
+    // Socket Cleanup on Unmount or Route Change
+    return () => {
+      isMounted = false;
+
+      socket.emit("leave_board", boardId);
+      socket.off("task_created");
+      socket.off("task_updated");
+      socket.off("task_deleted");
+      socket.off("board_updated");
+      socket.off("board_deleted");
+      socket.disconnect();
+    };
+  }, [boardId, stages, navigate]);
 
   // Compute live progress percentage
   const progressPercent = useMemo(() => {
@@ -135,21 +219,15 @@ export default function Board() {
         position: newPosition,
       });
 
-      const formattedTask = {
-        id: String(newTask.task_id || newTask.id),
-        title: newTask.title,
-        description: newTask.description,
-        due_date: newTask.due_date,
-        position:
-          newTask.position !== undefined && newTask.position !== null
-            ? Number(newTask.position)
-            : newPosition,
-      };
+      const formattedTask = formatTask(newTask);
 
-      setTasksByStage((prev) => ({
-        ...prev,
-        [stage]: [formattedTask, ...prev[stage]],
-      }));
+      setTasksByStage((prev) => {
+        if (prev[stage].some((t) => t.id === formattedTask.id)) return prev;
+        return {
+          ...prev,
+          [stage]: [formattedTask, ...prev[stage]],
+        };
+      });
     } catch (err) {
       console.error("Failed to create task", err);
     }
@@ -170,17 +248,12 @@ export default function Board() {
   const handleUpdateTask = async (taskId, stage, updatedPayload) => {
     try {
       const updatedTask = await updateTask(taskId, updatedPayload);
+      const formatted = formatTask(updatedTask);
 
       setTasksByStage((prev) => ({
         ...prev,
         [stage]: prev[stage].map((task) =>
-          task.id === String(taskId)
-            ? {
-                ...task,
-                ...updatedTask,
-                id: String(updatedTask.task_id || updatedTask.id || taskId),
-              }
-            : task
+          task.id === String(taskId) ? { ...task, ...formatted } : task
         ),
       }));
     } catch (err) {
@@ -280,13 +353,21 @@ export default function Board() {
       const targetIndex = isDroppingOnColumn ? destination.length : toIndex;
 
       computedPosition = calculateNewPosition(destination, targetIndex);
-      destination.splice(targetIndex, 0, { ...movedTask, position: computedPosition });
+      destination.splice(
+        targetIndex,
+        0,
+        { ...movedTask, position: computedPosition }
+      );
 
       return { ...prev, [fromStage]: source, [toStage]: destination };
     });
 
     try {
-      await updateTask(activeId, { status: toStage, position: computedPosition });
+      await updateTask(activeId, {
+        status: toStage,
+        position: computedPosition,
+        board_id: Number(boardId),
+      });
     } catch (err) {
       console.error("Failed to persist task movement", err);
     }

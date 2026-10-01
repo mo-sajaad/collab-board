@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { FaUserPlus, FaTrash, FaXmark, FaUser, FaCrown } from "react-icons/fa6";
 import { addBoardMember, removeBoardMember, getBoardMembers } from "../../api/boards";
 import { getCurrentUser } from "../../utils/auth";
+import { socket } from "../../utils/socket";
 
 export default function BoardMembersModal({
   isOpen,
@@ -53,6 +54,31 @@ export default function BoardMembersModal({
 
     return () => clearTimeout(timer)
   }, [isOpen, boardId]);
+
+  useEffect(() => {
+    if (!boardId) return;
+
+    // Member added event
+    socket.on("member_added", (newMember) => {
+      setMembers((prev) => {
+        const exists = prev.some((m) => String(m.user_id || m.id) === String(newMember.user_id || newMember.id))
+      
+        if (exists) return prev;
+        return [...prev, newMember];
+      });
+    });
+
+    // Member added event
+    socket.on("member_removed", ({ userId }) => {
+      setMembers((prev) => prev.filter((m) => String(m.user_id || m.id) !== String(userId)));
+    });
+
+    return () => {
+      socket.off("member_added");
+      socket.off("member_removed")
+    }
+
+  }, [boardId]);
 
   if (!isOpen) return null;
 
