@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { FaMagnifyingGlass, FaArrowRightFromBracket } from "react-icons/fa6";
 import { logoutUser } from "../api/auth";
+import SearchBar from "./SearchBar";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -36,14 +37,7 @@ export default function Navbar() {
       </NavLink>
 
       {/* Responsive Search bar */}
-      <div className="hidden sm:flex items-center flex-1 max-w-md mx-6 relative">
-        <FaMagnifyingGlass className="absolute left-3.5 text-muted text-sm pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search boards or tasks..."
-          className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg bg-card border border-border text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-green-400 transition-all duration-200"
-        />
-      </div>
+      <SearchBar />
 
       {/* User Info & Actions */}
       <div className="flex items-center gap-3">
