@@ -68,7 +68,7 @@ export default function BoardMembersModal({
       });
     });
 
-    // Member added event
+    // Member removed event
     socket.on("member_removed", ({ userId }) => {
       setMembers((prev) => prev.filter((m) => String(m.user_id || m.id) !== String(userId)));
     });
