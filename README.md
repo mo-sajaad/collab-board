@@ -2,6 +2,7 @@
 
 ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
@@ -13,12 +14,12 @@ Designed to simulate modern production tools like Trello and Linear, it features
 
 ## 🚀 Key Features
 
+## 🚀 Key Features
+
 * **Interactive Kanban Board:** Drag-and-drop tasks seamlessly across columns (`To Do`, `In Progress`, `Done`) powered by `@dnd-kit`.
+* **Real-Time WebSockets Sync:** Instant bi-directional communication powered by Socket.io — board updates, column movements, and task modifications broadcast immediately across active user sessions.
+* **Task Filtering & Search:** Real-time debounced keyword search and criteria filtering across active board cards, with quick view options under active development.
 * **Dynamic Member Management:** Invite team members to boards via instant email lookup and manage roles with strict ownership controls.
-* **Hybrid UX Persistence Pattern:** Auto-saving status updates for fast board column transitions combined with explicit batch saves for text fields to prevent API thrashing.
-* **Granular Role-Based Access Control (RBAC):** Board owners hold exclusive rights to invite members, remove members, or delete entire boards.
-* **Modal Accessibility:** Fully optimized keyboard navigation and auto-focus inputs on critical workflows like member invitations.
-* **Responsive UI:** Clean, unified dark/light-mode UI built from the ground up using Tailwind CSS.
 
 ---
 
@@ -26,12 +27,14 @@ Designed to simulate modern production tools like Trello and Linear, it features
 
 ### **Frontend**
 * **Framework:** React 18 (Vite)
+* **Real-Time Client:** `socket.io-client`
 * **Routing:** React Router v6
 * **Drag and Drop:** `@dnd-kit` (Core, Sortable, Utilities)
 * **Styling:** Tailwind CSS, React Icons
 
 ### **Backend**
 * **Runtime:** Node.js, Express.js
+* **Real-Time Engine:** Socket.io
 * **Database:** PostgreSQL (`pg` pool integration)
 * **Authentication:** JSON Web Tokens (JWT) & `bcrypt` password hashing
 
@@ -134,7 +137,7 @@ npm install
 
 Create a `.env` configuration file inside the `backend/` root directory:
 ```env
-PORT=5000
+PORT=3000
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/trello_db
 JWT_SECRET=your_jwt_secret_key
 ```
@@ -154,7 +157,7 @@ npm install
 
 Create a `.env` configuration file inside the `frontend/` root directory:
 ```env
-VITE_API_BASE_URL=http://localhost:5000/api
+VITE_API_BASE_URL=http://localhost:3000/api
 ```
 
 Start the Vite development web server:
@@ -169,11 +172,14 @@ npm run dev
 * **State Encapsulation over Prop Drilling:** Designed highly modular layout structures (e.g., `BoardMembersModal`) to encapsulate their own data fetching routines and isolate state derivation based on authentication contexts.
 * **REST API Precision:** Standardised strict HTTP response codes (`403 Forbidden` for unauthorized role actions versus `404 Not Found` for missing resources) to ensure clear, diagnostic client-side error reporting.
 * **Event Propagation Handling:** Solved nested click and drag handle event conflicts inside `@dnd-kit` item cards using custom `e.stopPropagation()` hooks to prevent active task selection modals from interrupting card movement handlers.
+* **WebSocket Event Architecture:** Isolated Socket.io event emissions to board-specific rooms (`board:{boardId}`) to ensure socket traffic is scoped strictly to active members viewing the relevant board.
 
 ---
 
 ## 🔮 Future Enhancements Roadmap
 
-- [ ] **Real-time Synchronization:** Implement WebSockets via Socket.io for immediate multi-user board mutations and card reflections.
-- [ ] **Advanced Search & Filter:** Incorporate debounced title searching along with quick "Assigned to Me" query filter switches.
+- [x] **Real-time Synchronization:** Implement WebSockets via Socket.io for immediate multi-user board mutations and card reflections.
+- [ ] **Advanced Search & Filter:**
+  - [x] Debounced keyword search
+  - [ ] "Assigned to Me" query filter switch
 - [ ] **Auth Hardening:** Transition token lifecycle storage from `localStorage` over to secure, encrypted `HttpOnly` cookies.
